@@ -3,11 +3,11 @@ use std::sync::Arc;
 use tokio::sync::{Barrier, BarrierWaitResult, Notify};
 use tokio::time::{sleep, Duration};
 
-async fn barrier_example(barrier: Arc<Barrier>, notify: Arc<Notify>) -> BarrierWaitResult {
-    println!("Waiting at barrier");
+async fn barrier_example(barrier: Arc<Barrier>, notify: Arc<Notify>, box_number: u8) -> BarrierWaitResult {
+    println!("[Box: {box_number}] Waiting at barrier");
 
     let wait_result = barrier.wait().await;
-    println!("Passed through the barrier");
+    println!("[Box: {box_number}] Passed through the barrier");
 
     if wait_result.is_leader() {
         notify.notify_one();
@@ -27,17 +27,20 @@ async fn main() {
     notify.notify_one();
 
     let mut task_handles = Vec::new();
+    let mut box_number = 0;
     for can_count in 0..60 {
-        if can_count % 12 == 0 {
+        if can_count % total_cans_needed == 0 {
             notify.notified().await;
+            box_number += 1;
 
             // Give the barrier some time to close
-            sleep(Duration::from_millis(1)).await;
+            // sleep(Duration::from_millis(1)).await;
         }
 
         task_handles.push(tokio::spawn(barrier_example(
             barrier.clone(),
             notify.clone(),
+            box_number
         )));
     }
 
